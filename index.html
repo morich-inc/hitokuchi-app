@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麹とおばんざい ひとくち</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --primary:#1D7FA3;
+    --primary-dark:#145A75;
+    --accent:#4FB3D9;
+    --bg:#EFF8FB;
+    --card:#FFFFFF;
+    --light:#DEF1F7;
+    --text:#22333B;
+    --muted:#6E8A95;
+    --good:#3E8E6E;
+    --warn:#C0392B;
+    --border:#CDE8F0;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    min-height:100vh;
+  }
+  /* ---- サイドバー ---- */
+  #sidebar{
+    width:220px;
+    background:linear-gradient(180deg,var(--primary),var(--primary-dark));
+    color:#fff;
+    flex-shrink:0;
+    padding:24px 0;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+  }
+  #sidebar h1{
+    font-size:17px;
+    text-align:center;
+    margin:0 0 24px;
+    line-height:1.5;
+    padding:0 12px;
+  }
+  #sidebar h1 span{display:block;font-size:12px;opacity:.75;font-weight:400;margin-top:4px;}
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 22px;
+    cursor:pointer;
+    font-size:14px;
+    opacity:.85;
+    border-left:3px solid transparent;
+    transition:.15s;
+  }
+  .nav-item:hover{opacity:1;background:rgba(255,255,255,.08);}
+  .nav-item.active{opacity:1;background:rgba(255,255,255,.14);border-left-color:#fff;font-weight:bold;}
+  .nav-icon{font-size:16px;}
+
+  /* ---- メイン ---- */
+  #main{flex:1;padding:28px 34px 60px;max-width:1080px;}
+  .page{display:none;}
+  .page.active{display:block;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .page-title{font-size:22px;font-weight:bold;color:var(--primary);margin:0 0 6px;}
+  .page-sub{color:var(--muted);font-size:13px;margin:0 0 22px;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    margin-bottom:18px;
+    box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .card h3{margin:0 0 14px;font-size:15px;color:var(--primary-dark);}
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;}
+  .stat .label{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .stat .value{font-size:26px;font-weight:bold;color:var(--primary);}
+  .stat .value small{font-size:14px;font-weight:normal;color:var(--muted);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;}
+  th{background:var(--light);color:var(--primary-dark);font-weight:bold;font-size:12px;}
+  tr:hover td{background:#EAF7FB;}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    font-family:inherit;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:13px;
+    background:#F7FCFE;
+    color:var(--text);
+  }
+  textarea{width:100%;resize:vertical;}
+  button{
+    font-family:inherit;
+    background:var(--primary);
+    color:#fff;
+    border:none;
+    padding:9px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:bold;
+    transition:.15s;
+  }
+  button:hover{background:var(--primary-dark);}
+  button.secondary{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+  button.secondary:hover{background:var(--light);}
+  button.danger{background:#fff;color:var(--warn);border:1px solid var(--warn);padding:5px 10px;font-size:12px;}
+  button.danger:hover{background:#fdecea;}
+  .form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;}
+  .form-row label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:bold;}
+  .badge.good{background:#e7f4ea;color:var(--good);}
+  .badge.warn{background:#fdecea;color:var(--warn);}
+  .badge.neutral{background:var(--light);color:var(--primary-dark);}
+  .progress-bar{height:10px;background:var(--light);border-radius:6px;overflow:hidden;margin-top:6px;}
+  .progress-bar > div{height:100%;background:var(--accent);}
+  .checklist-group{margin-bottom:16px;}
+  .checklist-group h4{margin:0 0 8px;font-size:13px;color:var(--accent);}
+  .check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px dashed var(--border);}
+  .check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);}
+  .check-row span{flex:1;font-size:13.5px;}
+  .check-row.done span{text-decoration:line-through;color:var(--muted);}
+  .empty{color:var(--muted);font-size:13px;padding:14px 4px;}
+  .faq details{border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:#F7FCFE;}
+  .faq summary{cursor:pointer;font-weight:bold;font-size:13.5px;color:var(--primary-dark);}
+  .faq p{font-size:13px;color:var(--text);margin:8px 0 2px;line-height:1.7;}
+  .note-item{border-left:3px solid var(--accent);padding:8px 12px;margin-bottom:10px;background:#EAF7FB;border-radius:0 8px 8px 0;}
+  .note-item .meta{font-size:11px;color:var(--muted);margin-bottom:4px;}
+  .hint{font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;}
+  .two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+  @media (max-width:900px){.two-col{grid-template-columns:1fr;}}
+  canvas{max-width:100%;}
+  .tag-input-row{display:flex;gap:8px;margin-top:10px;}
+  .tag-input-row input{flex:1;}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>🥬 麹とおばんざい<br>ひとくち</h1>
+  <div class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span>ダッシュボード</div>
+  <div class="nav-item" data-page="checklist"><span class="nav-icon">✅</span>開業準備チェックリスト</div>
+  <div class="nav-item" data-page="menu"><span class="nav-icon">🥕</span>材料原価・値付け計算</div>
+  <div class="nav-item" data-page="sales"><span class="nav-icon">💴</span>売上入力・集計</div>
+  <div class="nav-item" data-page="expense"><span class="nav-icon">🧾</span>経費・損益分岐点</div>
+  <div class="nav-item" data-page="notes"><span class="nav-icon">💬</span>相談メモ・よくある質問</div>
+</div>
+
+<div id="main">
+
+  <!-- ================= ダッシュボード ================= -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-title">ダッシュボード</div>
+    <div class="page-sub">お店全体の状況をひと目で確認できます。</div>
+
+    <div class="grid-cards">
+      <div class="stat">
+        <div class="label">今月の売上合計</div>
+        <div class="value" id="dashMonthSales">¥0</div>
+      </div>
+      <div class="stat">
+        <div class="label">平均原価率（登録メニュー）</div>
+        <div class="value" id="dashCostRate">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">損益分岐点 売上高（月）</div>
+        <div class="value" id="dashBreakeven">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">開業準備の進捗</div>
+        <div class="value" id="dashChecklist">0%</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3>売上推移（直近30件）</h3>
+        <canvas id="salesChart" height="130"></canvas>
+      </div>
+      <div class="card">
+        <h3>メニュー原価率の内訳</h3>
+        <canvas id="costChart" height="130"></canvas>
+        <div class="hint">目安：原価率は平均30%前後に収まるとバランスが良いとされています。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>直近の相談メモ</h3>
+      <div id="dashNotes"></div>
+    </div>
+  </div>
+
+  <!-- ================= チェックリスト ================= -->
+  <div class="page" id="page-checklist">
+    <div class="page-title">開業準備チェックリスト</div>
+    <div class="page-sub">やるべきことを項目ごとに管理できます。完了したらチェックを入れてください。項目は自由に追加できます。</div>
+    <div class="card">
+      <div class="form-row">
+        <label>カテゴリ
+          <select id="clCategory"></select>
+        </label>
+        <label>やること
+          <input type="text" id="clText" placeholder="例：保健所へ事前相談" style="width:280px">
+        </label>
+        <button onclick="addChecklistItem()">＋ 追加</button>
+      </div>
+    </div>
+    <div id="checklistContainer"></div>
+  </div>
+
+  <!-- ================= 材料原価・値付け計算 ================= -->
+  <div class="page" id="page-menu">
+    <div class="page-title">材料原価・値付け計算</div>
+    <div class="page-sub">①仕入れた材料を登録し、②メニューごとに「その材料をどれだけ使うか」を入力すると、1人前あたりの原価と目安の価格を自動計算します。原価を直接入力する必要はありません。</div>
+
+    <div class="card">
+      <h3>① 材料を登録する（仕入れ情報）</h3>
+      <div class="form-row">
+        <label>材料名<input type="text" id="iName" placeholder="例：人参" style="width:140px"></label>
+        <label>仕入数量<input type="number" id="iQty" min="0" step="0.01" style="width:90px" placeholder="例：1"></label>
+        <label>単位<select id="iUnit">
+          <option>kg</option><option>g</option><option>L</option><option>ml</option>
+          <option>個</option><option>本</option><option>束</option><option>枚</option><option>パック</option>
+        </select></label>
+        <label>仕入価格（円）<input type="number" id="iPrice" min="0" step="1" style="width:100px" placeholder="例：300"></label>
+        <button onclick="addIngredient()">＋ 材料を追加</button>
+      </div>
+      <div class="hint">例：人参を1kg・300円で仕入れた → 仕入数量「1」単位「kg」仕入価格「300」と入力。自動的に単価「300円/kg」として計算されます。</div>
+      <table id="ingredientTable" style="margin-top:14px;">
+        <thead><tr><th>材料名</th><th>仕入数量</th><th>仕入価格</th><th>単価</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="ingredientEmpty">まだ材料が登録されていません。まずは①で材料を登録してください。</div>
+    </div>
+
+    <div class="card">
+      <h3>② メニューを作る（材料の使用量を入力）</h3>
+      <div class="form-row">
+        <label>メニュー名<input type="text" id="recName" placeholder="例：肉じゃが" style="width:160px"></label>
+        <label>何人前できる？<input type="number" id="recServings" min="1" step="1" value="1" style="width:90px"></label>
+      </div>
+      <div class="form-row">
+        <label>使う材料<select id="recIngredient" style="width:150px" onchange="updateRecUnitLabel()"></select></label>
+        <label>使用量<input type="number" id="recQty" min="0" step="0.01" style="width:90px" placeholder="例：0.3"></label>
+        <span id="recUnitLabel" class="hint" style="margin-bottom:9px;"></span>
+        <button class="secondary" onclick="addRecipeLine()">＋ レシピに追加</button>
+      </div>
+      <table>
+        <thead><tr><th>材料</th><th>使用量</th><th>小計</th><th></th></tr></thead>
+        <tbody id="recipeLinesBody"></tbody>
+      </table>
+      <div class="empty" id="recipeEmpty">材料をまだ追加していません。上のフォームから使う材料と使用量を追加してください。</div>
+
+      <div class="grid-cards" style="margin-top:16px;">
+        <div class="stat"><div class="label">このメニューの原価（合計）</div><div class="value" id="recBatchCost">¥0</div></div>
+        <div class="stat"><div class="label">1人前あたりの原価</div><div class="value" id="recPerServing">¥0</div></div>
+      </div>
+
+      <div class="form-row">
+        <label>目標原価率（%）<input type="number" id="recTargetRate" value="30" min="1" max="99" style="width:80px"></label>
+        <label>実売価格（円・任意）<input type="number" id="recActualPrice" min="0" step="10" style="width:110px"></label>
+        <button onclick="saveMenuRecipe()">メニューを保存する</button>
+        <button class="secondary" onclick="resetRecipeBuilder()">作りかけをリセット</button>
+      </div>
+      <div class="hint">材料の仕入価格は今後も更新できます。更新すると、そこから使っているすべてのメニューの原価も自動で計算し直されます。</div>
+    </div>
+
+    <div class="card">
+      <h3>登録メニュー一覧</h3>
+      <div id="menuListContainer"></div>
+      <div class="empty" id="menuEmpty">まだメニューが登録されていません。</div>
+    </div>
+  </div>
+
+  <!-- ================= 売上入力 ================= -->
+  <div class="page" id="page-sales">
+    <div class="page-title">売上入力・集計</div>
+    <div class="page-sub">日々の売上を記録して、月ごとの推移を確認できます。</div>
+
+    <div class="card">
+      <h3>売上を記録</h3>
+      <div class="form-row">
+        <label>日付<input type="date" id="sDate"></label>
+        <label>売上（円）<input type="number" id="sAmount" min="0" step="100" style="width:120px"></label>
+        <label>客数<input type="number" id="sCustomers" min="0" step="1" style="width:90px"></label>
+        <label>メモ<input type="text" id="sNote" placeholder="任意" style="width:180px"></label>
+        <button onclick="addSale()">＋ 記録</button>
+      </div>
+    </div>
+
+    <div class="grid-cards">
+      <div class="stat"><div class="label">今月合計</div><div class="value" id="sMonthTotal">¥0</div></div>
+      <div class="stat"><div class="label">今月の日平均</div><div class="value" id="sMonthAvg">¥0</div></div>
+      <div class="stat"><div class="label">平均客単価</div><div class="value" id="sAvgCustomer">¥0</div></div>
+    </div>
+
+    <div class="card">
+      <h3>記録一覧</h3>
+      <table>
+        <thead><tr><th>日付</th><th>売上</th><th>客数</th><th>客単価</th><th>メモ</th><th></th></tr></thead>
+        <tbody id="salesTableBody"></tbody>
+      </table>
+      <div class="empty" id="salesEmpty">まだ記録がありません。</div>
+    </div>
+  </div>
+
+  <!-- ================= 経費・損益分岐点 ================= -->
+  <div class="page" id="page-expense">
+    <div class="page-title">経費・損益分岐点</div>
+    <div class="page-sub">毎月の固定費と原価率から、黒字化に必要な売上高（損益分岐点）を計算します。</div>
+
+    <div class="card">
+      <h3>月次の固定費を入力</h3>
+      <div class="form-row">
+        <label>家賃（円）<input type="number" id="eRent" min="0" step="1000"></label>
+        <label>人件費（固定分・円）<input type="number" id="eLabor" min="0" step="1000"></label>
+        <label>水道光熱費（円）<input type="number" id="eUtility" min="0" step="1000"></label>
+        <label>その他固定費（円）<input type="number" id="eOther" min="0" step="1000"></label>
+        <label>想定原価率（%）<input type="number" id="eCostRate" value="30" min="1" max="99" style="width:80px"></label>
+        <button onclick="saveExpense()">保存する</button>
+      </div>
+    </div>
+
+    <div class="grid-cards">
+      <div class="stat"><div class="label">月間固定費合計</div><div class="value" id="expFixedTotal">¥0</div></div>
+      <div class="stat"><div class="label">損益分岐点 売上高</div><div class="value" id="expBreakeven">¥0</div></div>
+      <div class="stat"><div class="label">今月の売上との差</div><div class="value" id="expGap">–</div></div>
+    </div>
+    <div class="card">
+      <div class="hint">計算式：損益分岐点売上高 ＝ 固定費 ÷（1 − 原価率）。原価率のほか人件費も変動費として考える場合は「想定原価率」に人件費率を加算して入力してください。</div>
+    </div>
+  </div>
+
+  <!-- ================= 相談メモ ================= -->
+  <div class="page" id="page-notes">
+    <div class="page-title">相談メモ・よくある質問</div>
+    <div class="page-sub">気になったことや税理士・保健所への確認事項をメモしておけます。あわせて開業でよくある質問もまとめました。</div>
+
+    <div class="card">
+      <h3>メモを追加</h3>
+      <div class="tag-input-row">
+        <input type="text" id="noteText" placeholder="例：深夜に酒類提供する場合の届出について確認する">
+        <button onclick="addNote()">＋ 追加</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>メモ一覧</h3>
+      <div id="notesList"></div>
+      <div class="empty" id="notesEmpty">まだメモがありません。</div>
+    </div>
+
+    <div class="card faq">
+      <h3>よくある質問</h3>
+      <details>
+        <summary>原価率は何%を目安にすればいい？</summary>
+        <p>一般的な目安は30%前後です。ドリンク類は20〜25%、フード類は27〜30%程度になりやすく、メニュー全体で平均30%前後に収まるよう調整するのがコツです。</p>
+      </details>
+      <details>
+        <summary>開業資金はどれくらい必要？</summary>
+        <p>飲食店全体の開業資金の平均は1,000万円前後、自己資金は総額の3割程度が目安と言われています。ただし居抜き物件の活用や規模を抑えることで、これより少ない資金でも開業は可能です。まずは自分の店の規模で必要額を積み上げて見積もることが大切です。</p>
+      </details>
+      <details>
+        <summary>お酒を出す場合、特別な届出は必要？</summary>
+        <p>深夜0時以降にお酒を提供する場合は「深夜酒類提供飲食店営業届出」を管轄の警察署に提出する必要があります（届出は営業開始の10日ほど前が目安）。0時までの営業であれば通常は不要です。</p>
+      </details>
+      <details>
+        <summary>資格は何が必要？</summary>
+        <p>最低限必要なのは「食品衛生責任者」です。都道府県の食品衛生協会が実施する講習（通常1日）を受ければ取得できます。店の収容人数が30人以上の場合は「防火管理者」の資格も必要です。</p>
+      </details>
+      <details>
+        <summary>FLコストとは？</summary>
+        <p>食材費（Food）と人件費（Labor）を合わせたコストのことです。売上高に対してFLコストが60%以内（食材費30%・人件費30%程度が目安）に収まっていると、利益が出やすい健全な経営とされています。</p>
+      </details>
+      <details>
+        <summary>開業準備はどのくらい前から始めればいい？</summary>
+        <p>一般的には半年〜1年前からの準備が目安です。特に物件探しと資金調達は時間がかかりやすいので、コンセプトが固まったら早めに動き出すと安心です。「開業準備チェックリスト」ページで進捗を管理できます。</p>
+      </details>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ===================== ユーティリティ ===================== */
+const yen = n => "¥" + Math.round(n || 0).toLocaleString("ja-JP");
+const pct = n => (isFinite(n) ? n.toFixed(1) : "0.0") + "%";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const todayStr = () => new Date().toISOString().slice(0,10);
+const thisMonthKey = () => new Date().toISOString().slice(0,7);
+
+function load(key, fallback){
+  try{
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  }catch(e){ return fallback; }
+}
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+/* ===================== 初期データ ===================== */
+const DEFAULT_CHECKLIST = [
+  ["コンセプト・計画","お店のコンセプト（誰に・何を・いくらで）を言語化した"],
+  ["コンセプト・計画","事業計画書を作成した"],
+  ["コンセプト・計画","開業資金の総額を見積もった"],
+  ["コンセプト・計画","自己資金と融資の内訳を決めた"],
+  ["物件・内装","物件を契約した（家賃・保証金・立地を確認済み）"],
+  ["物件・内装","内装工事の見積りを取った"],
+  ["物件・内装","厨房機器・什器のリストを作成した"],
+  ["メニュー・価格","看板メニュー・定番メニューを決めた"],
+  ["メニュー・価格","メニューごとの原価を計算した"],
+  ["メニュー・価格","原価率30%前後を目安に価格を決めた"],
+  ["メニュー・価格","仕入れ先を複数確保した"],
+  ["許認可・届出","食品衛生責任者の資格を取得した"],
+  ["許認可・届出","保健所へ飲食店営業許可を申請した"],
+  ["許認可・届出","防火管理者の要否を確認し、必要なら選任した"],
+  ["許認可・届出","消防署へ必要な届出を提出した"],
+  ["許認可・届出","深夜酒類提供の有無を確認し、必要なら警察署へ届出した"],
+  ["許認可・届出","税務署へ開業届を提出した"],
+  ["人材・販促","必要なスタッフを採用し、研修した"],
+  ["人材・販促","SNS・グルメサイトなどの集客導線を準備した"],
+  ["人材・販促","プレオープンを実施し、オペレーションを確認した"],
+];
+const CATEGORIES = ["コンセプト・計画","物件・内装","メニュー・価格","許認可・届出","人材・販促","その他"];
+
+function seedChecklist(){
+  return DEFAULT_CHECKLIST.map(([category,text]) => ({id:uid(), category, text, done:false}));
+}
+
+let checklist = load("ob_checklist", null) || seedChecklist();
+let ingredients = load("ob_ingredients", []);
+let menus = load("ob_menus", []);
+let recipeBuilder = { lines: [] }; // メニュー作成中の一時データ（保存前）
+let sales = load("ob_sales", []);
+let expense = load("ob_expense", {rent:0, labor:0, utility:0, other:0, costRate:30});
+let notes = load("ob_notes", []);
+
+/* ===================== ナビゲーション ===================== */
+document.querySelectorAll(".nav-item").forEach(item=>{
+  item.addEventListener("click", ()=>{
+    document.querySelectorAll(".nav-item").forEach(i=>i.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    item.classList.add("active");
+    document.getElementById("page-"+item.dataset.page).classList.add("active");
+    if(item.dataset.page === "dashboard") renderDashboard();
+  });
+});
+
+/* ===================== チェックリスト ===================== */
+function initChecklistForm(){
+  const sel = document.getElementById("clCategory");
+  sel.innerHTML = CATEGORIES.map(c=>`<option value="${c}">${c}</option>`).join("");
+}
+function addChecklistItem(){
+  const category = document.getElementById("clCategory").value;
+  const text = document.getElementById("clText").value.trim();
+  if(!text) return;
+  checklist.push({id:uid(), category, text, done:false});
+  document.getElementById("clText").value = "";
+  save("ob_checklist", checklist);
+  renderChecklist();
+}
+function toggleChecklist(id){
+  const item = checklist.find(c=>c.id===id);
+  if(item){ item.done = !item.done; save("ob_checklist", checklist); renderChecklist(); }
+}
+function deleteChecklist(id){
+  checklist = checklist.filter(c=>c.id!==id);
+  save("ob_checklist", checklist);
+  renderChecklist();
+}
+function renderChecklist(){
+  const container = document.getElementById("checklistContainer");
+  container.innerHTML = "";
+  CATEGORIES.forEach(cat=>{
+    const items = checklist.filter(c=>c.category===cat);
+    if(items.length===0) return;
+    const div = document.createElement("div");
+    div.className = "card checklist-group";
+    const done = items.filter(i=>i.done).length;
+    div.innerHTML = `<h4>${cat}（${done}/${items.length}）</h4>`;
+    items.forEach(item=>{
+      const row = document.createElement("div");
+      row.className = "check-row" + (item.done ? " done" : "");
+      row.innerHTML = `
+        <input type="checkbox" ${item.done?"checked":""} onchange="toggleChecklist('${item.id}')">
+        <span>${escapeHtml(item.text)}</span>
+        <button class="danger" onclick="deleteChecklist('${item.id}')">削除</button>`;
+      div.appendChild(row);
+    });
+    container.appendChild(div);
+  });
+}
+function checklistProgress(){
+  if(checklist.length===0) return 0;
+  return Math.round(checklist.filter(c=>c.done).length / checklist.length * 100);
+}
+
+/* ===================== 材料原価・値付け計算 ===================== */
+function addIngredient(){
+  const name = document.getElementById("iName").value.trim();
+  const qty = parseFloat(document.getElementById("iQty").value);
+  const unit = document.getElementById("iUnit").value;
+  const price = parseFloat(document.getElementById("iPrice").value);
+  if(!name || !isFinite(qty) || qty <= 0 || !isFinite(price) || price < 0){
+    alert("材料名・仕入数量・仕入価格を正しく入力してください。");
+    return;
+  }
+  ingredients.push({id:uid(), name, qty, unit, price});
+  document.getElementById("iName").value = "";
+  document.getElementById("iQty").value = "";
+  document.getElementById("iPrice").value = "";
+  save("ob_ingredients", ingredients);
+  renderIngredients();
+  renderMenuList(); // 単価変更に伴い、既存メニューの原価も再計算して表示
+}
+function deleteIngredient(id){
+  const used = menus.some(m => m.lines.some(l => l.ingredientId === id));
+  if(used && !confirm("このメニューで使われている材料です。削除するとレシピ内の表示が「(削除済み)」になります。削除しますか？")) return;
+  ingredients = ingredients.filter(i=>i.id!==id);
+  save("ob_ingredients", ingredients);
+  renderIngredients();
+  renderMenuList();
+}
+function unitPriceOf(ing){ return ing.price / ing.qty; }
+function renderIngredients(){
+  const tbody = document.querySelector("#ingredientTable tbody");
+  tbody.innerHTML = "";
+  document.getElementById("ingredientEmpty").style.display = ingredients.length ? "none" : "block";
+  ingredients.forEach(ing=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(ing.name)}</td>
+      <td>${ing.qty}${ing.unit}</td>
+      <td>${yen(ing.price)}</td>
+      <td>${yen(unitPriceOf(ing))} / ${ing.unit}</td>
+      <td><button class="danger" onclick="deleteIngredient('${ing.id}')">削除</button></td>`;
+    tbody.appendChild(tr);
+  });
+  // レシピ材料選択セレクトを更新
+  const sel = document.getElementById("recIngredient");
+  const prevVal = sel.value;
+  sel.innerHTML = ingredients.map(i=>`<option value="${i.id}">${escapeHtml(i.name)}</option>`).join("");
+  if(ingredients.some(i=>i.id===prevVal)) sel.value = prevVal;
+  updateRecUnitLabel();
+}
+function updateRecUnitLabel(){
+  const sel = document.getElementById("recIngredient");
+  const ing = ingredients.find(i=>i.id===sel.value);
+  document.getElementById("recUnitLabel").textContent = ing ? `単位：${ing.unit}（仕入れ時と同じ単位で入力）` : "";
+}
+
+/* ---- レシピ作成中（保存前の一時状態） ---- */
+function addRecipeLine(){
+  const ingredientId = document.getElementById("recIngredient").value;
+  const qty = parseFloat(document.getElementById("recQty").value);
+  const ing = ingredients.find(i=>i.id===ingredientId);
+  if(!ing){ alert("先に①で材料を登録してください。"); return; }
+  if(!isFinite(qty) || qty <= 0){ alert("使用量を正しく入力してください。"); return; }
+  recipeBuilder.lines.push({ingredientId, qty});
+  document.getElementById("recQty").value = "";
+  renderRecipeLines();
+}
+function removeRecipeLine(index){
+  recipeBuilder.lines.splice(index,1);
+  renderRecipeLines();
+}
+function calcLineCost(line){
+  const ing = ingredients.find(i=>i.id===line.ingredientId);
+  return ing ? unitPriceOf(ing) * line.qty : 0;
+}
+function renderRecipeLines(){
+  const tbody = document.getElementById("recipeLinesBody");
+  tbody.innerHTML = "";
+  document.getElementById("recipeEmpty").style.display = recipeBuilder.lines.length ? "none" : "block";
+  let batchCost = 0;
+  recipeBuilder.lines.forEach((line, idx)=>{
+    const ing = ingredients.find(i=>i.id===line.ingredientId);
+    const cost = calcLineCost(line);
+    batchCost += cost;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${ing ? escapeHtml(ing.name) : "(削除済み)"}</td>
+      <td>${line.qty}${ing ? ing.unit : ""}</td>
+      <td>${yen(cost)}</td>
+      <td><button class="danger" onclick="removeRecipeLine(${idx})">削除</button></td>`;
+    tbody.appendChild(tr);
+  });
+  const servings = Math.max(parseFloat(document.getElementById("recServings").value) || 1, 1);
+  document.getElementById("recBatchCost").textContent = yen(batchCost);
+  document.getElementById("recPerServing").textContent = yen(batchCost/servings);
+}
+document.addEventListener("input", (e)=>{
+  if(e.target && e.target.id === "recServings") renderRecipeLines();
+});
+
+function saveMenuRecipe(){
+  const name = document.getElementById("recName").value.trim();
+  const servings = Math.max(parseInt(document.getElementById("recServings").value) || 1, 1);
+  const targetRate = parseFloat(document.getElementById("recTargetRate").value) || 30;
+  const actualPrice = parseFloat(document.getElementById("recActualPrice").value) || null;
+  if(!name){ alert("メニュー名を入力してください。"); return; }
+  if(recipeBuilder.lines.length === 0){ alert("材料を1つ以上レシピに追加してください。"); return; }
+  menus.push({
+    id: uid(), name, servings, targetRate, actualPrice,
+    lines: recipeBuilder.lines.map(l=>({ingredientId:l.ingredientId, qty:l.qty})),
+  });
+  save("ob_menus", menus);
+  resetRecipeBuilder();
+  renderMenuList();
+}
+function resetRecipeBuilder(){
+  recipeBuilder = { lines: [] };
+  document.getElementById("recName").value = "";
+  document.getElementById("recServings").value = "1";
+  document.getElementById("recTargetRate").value = "30";
+  document.getElementById("recActualPrice").value = "";
+  document.getElementById("recQty").value = "";
+  renderRecipeLines();
+}
+function deleteMenu(id){
+  menus = menus.filter(m=>m.id!==id);
+  save("ob_menus", menus);
+  renderMenuList();
+}
+function menuCost(menu){
+  const batchCost = menu.lines.reduce((sum,l)=> sum + calcLineCost(l), 0);
+  return { batchCost, perServing: batchCost / (menu.servings || 1) };
+}
+function rateBadge(rate){
+  let cls = "neutral";
+  if(rate <= 32) cls = "good"; else if(rate > 38) cls = "warn";
+  return `<span class="badge ${cls}">${pct(rate)}</span>`;
+}
+function renderMenuList(){
+  const container = document.getElementById("menuListContainer");
+  container.innerHTML = "";
+  document.getElementById("menuEmpty").style.display = menus.length ? "none" : "block";
+  menus.forEach(m=>{
+    const { perServing } = menuCost(m);
+    const suggested = perServing / (m.targetRate/100);
+    const actualRate = m.actualPrice ? (perServing / m.actualPrice * 100) : null;
+    const recipeRows = m.lines.map(l=>{
+      const ing = ingredients.find(i=>i.id===l.ingredientId);
+      return `<tr><td>${ing ? escapeHtml(ing.name) : "(削除済み)"}</td><td>${l.qty}${ing ? ing.unit : ""}</td><td>${yen(calcLineCost(l))}</td></tr>`;
+    }).join("");
+    const wrap = document.createElement("details");
+    wrap.className = "card";
+    wrap.style.padding = "14px 20px";
+    wrap.innerHTML = `
+      <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <span><b>${escapeHtml(m.name)}</b>　<span class="hint" style="display:inline;">（${m.servings}人前）</span></span>
+        <span>1人前原価 <b>${yen(perServing)}</b>　推奨価格 <b>${yen(suggested)}</b>　${actualRate!==null ? rateBadge(actualRate) : '<span class="badge neutral">実売価格未設定</span>'}</span>
+      </summary>
+      <table style="margin-top:12px;">
+        <thead><tr><th>材料</th><th>使用量</th><th>小計</th></tr></thead>
+        <tbody>${recipeRows}</tbody>
+      </table>
+      <div class="form-row" style="margin-top:12px;">
+        <div class="hint">目標原価率 ${m.targetRate}%　実売価格 ${m.actualPrice ? yen(m.actualPrice) : "未設定"}</div>
+        <button class="danger" onclick="deleteMenu('${m.id}')">このメニューを削除</button>
+      </div>`;
+    container.appendChild(wrap);
+  });
+}
+function avgCostRate(){
+  if(menus.length===0) return null;
+  const rates = menus.map(m=>{
+    const { perServing } = menuCost(m);
+    return m.actualPrice ? (perServing/m.actualPrice*100) : m.targetRate;
+  });
+  return rates.reduce((a,b)=>a+b,0) / rates.length;
+}
+
+/* ===================== 売上 ===================== */
+function addSale(){
+  const date = document.getElementById("sDate").value || todayStr();
+  const amount = parseFloat(document.getElementById("sAmount").value);
+  const customers = parseFloat(document.getElementById("sCustomers").value) || null;
+  const note = document.getElementById("sNote").value.trim();
+  if(!isFinite(amount) || amount < 0){ alert("売上金額を入力してください。"); return; }
+  sales.push({id:uid(), date, amount, customers, note});
+  sales.sort((a,b)=> a.date.localeCompare(b.date));
+  document.getElementById("sAmount").value = "";
+  document.getElementById("sCustomers").value = "";
+  document.getElementById("sNote").value = "";
+  save("ob_sales", sales);
+  renderSales();
+}
+function deleteSale(id){
+  sales = sales.filter(s=>s.id!==id);
+  save("ob_sales", sales);
+  renderSales();
+}
+function renderSales(){
+  const tbody = document.getElementById("salesTableBody");
+  tbody.innerHTML = "";
+  document.getElementById("salesEmpty").style.display = sales.length ? "none" : "block";
+  [...sales].reverse().forEach(s=>{
+    const perCustomer = s.customers ? s.amount / s.customers : null;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.date}</td>
+      <td>${yen(s.amount)}</td>
+      <td>${s.customers ?? "—"}</td>
+      <td>${perCustomer ? yen(perCustomer) : "—"}</td>
+      <td>${escapeHtml(s.note||"")}</td>
+      <td><button class="danger" onclick="deleteSale('${s.id}')">削除</button></td>`;
+    tbody.appendChild(tr);
+  });
+
+  const monthKey = thisMonthKey();
+  const monthSales = sales.filter(s=> s.date.startsWith(monthKey));
+  const monthTotal = monthSales.reduce((a,s)=>a+s.amount,0);
+  const days = new Set(monthSales.map(s=>s.date)).size || 1;
+  document.getElementById("sMonthTotal").textContent = yen(monthTotal);
+  document.getElementById("sMonthAvg").textContent = yen(monthTotal/days);
+  const withCust = sales.filter(s=>s.customers);
+  const avgCustomer = withCust.length ? withCust.reduce((a,s)=>a+s.amount/s.customers,0)/withCust.length : 0;
+  document.getElementById("sAvgCustomer").textContent = yen(avgCustomer);
+}
+
+/* ===================== 経費・損益分岐点 ===================== */
+function fillExpenseForm(){
+  document.getElementById("eRent").value = expense.rent || "";
+  document.getElementById("eLabor").value = expense.labor || "";
+  document.getElementById("eUtility").value = expense.utility || "";
+  document.getElementById("eOther").value = expense.other || "";
+  document.getElementById("eCostRate").value = expense.costRate ?? 30;
+}
+function saveExpense(){
+  expense = {
+    rent: parseFloat(document.getElementById("eRent").value) || 0,
+    labor: parseFloat(document.getElementById("eLabor").value) || 0,
+    utility: parseFloat(document.getElementById("eUtility").value) || 0,
+    other: parseFloat(document.getElementById("eOther").value) || 0,
+    costRate: parseFloat(document.getElementById("eCostRate").value) || 30,
+  };
+  save("ob_expense", expense);
+  renderExpense();
+}
+function renderExpense(){
+  const fixedTotal = expense.rent + expense.labor + expense.utility + expense.other;
+  const rate = Math.min(Math.max(expense.costRate,1),99) / 100;
+  const breakeven = fixedTotal / (1 - rate);
+  document.getElementById("expFixedTotal").textContent = yen(fixedTotal);
+  document.getElementById("expBreakeven").textContent = yen(breakeven);
+
+  const monthKey = thisMonthKey();
+  const monthTotal = sales.filter(s=>s.date.startsWith(monthKey)).reduce((a,s)=>a+s.amount,0);
+  const gap = monthTotal - breakeven;
+  const gapEl = document.getElementById("expGap");
+  if(monthTotal === 0){
+    gapEl.innerHTML = `<span class="badge neutral">今月の売上未入力</span>`;
+  } else if(gap >= 0){
+    gapEl.innerHTML = `<span class="badge good">+${yen(gap)}</span>`;
+  } else {
+    gapEl.innerHTML = `<span class="badge warn">${yen(gap)}</span>`;
+  }
+}
+
+/* ===================== 相談メモ ===================== */
+function addNote(){
+  const text = document.getElementById("noteText").value.trim();
+  if(!text) return;
+  notes.unshift({id:uid(), text, date: new Date().toLocaleString("ja-JP")});
+  document.getElementById("noteText").value = "";
+  save("ob_notes", notes);
+  renderNotes();
+}
+function deleteNote(id){
+  notes = notes.filter(n=>n.id!==id);
+  save("ob_notes", notes);
+  renderNotes();
+}
+function renderNotes(){
+  const list = document.getElementById("notesList");
+  list.innerHTML = "";
+  document.getElementById("notesEmpty").style.display = notes.length ? "none" : "block";
+  notes.forEach(n=>{
+    const div = document.createElement("div");
+    div.className = "note-item";
+    div.innerHTML = `<div class="meta">${n.date}</div>${escapeHtml(n.text)}
+      <div style="margin-top:6px;"><button class="danger" onclick="deleteNote('${n.id}')">削除</button></div>`;
+    list.appendChild(div);
+  });
+}
+
+/* ===================== ダッシュボード ===================== */
+let salesChartInstance = null;
+let costChartInstance = null;
+
+function renderDashboard(){
+  const monthKey = thisMonthKey();
+  const monthTotal = sales.filter(s=>s.date.startsWith(monthKey)).reduce((a,s)=>a+s.amount,0);
+  document.getElementById("dashMonthSales").textContent = yen(monthTotal);
+
+  const avgRate = avgCostRate();
+  document.getElementById("dashCostRate").textContent = avgRate!==null ? pct(avgRate) : "未登録";
+
+  const fixedTotal = expense.rent + expense.labor + expense.utility + expense.other;
+  const rate = Math.min(Math.max(expense.costRate,1),99) / 100;
+  const breakeven = fixedTotal > 0 ? fixedTotal / (1-rate) : 0;
+  document.getElementById("dashBreakeven").textContent = breakeven ? yen(breakeven) : "未設定";
+
+  document.getElementById("dashChecklist").innerHTML =
+    `${checklistProgress()}%<div class="progress-bar"><div style="width:${checklistProgress()}%"></div></div>`;
+
+  const notesBox = document.getElementById("dashNotes");
+  if(notes.length===0){
+    notesBox.innerHTML = `<div class="empty">まだメモがありません。「相談メモ」ページから追加できます。</div>`;
+  }else{
+    notesBox.innerHTML = notes.slice(0,3).map(n=>
+      `<div class="note-item"><div class="meta">${n.date}</div>${escapeHtml(n.text)}</div>`).join("");
+  }
+
+  // 売上推移チャート
+  const recent = sales.slice(-30);
+  const ctx1 = document.getElementById("salesChart").getContext("2d");
+  if(salesChartInstance) salesChartInstance.destroy();
+  salesChartInstance = new Chart(ctx1, {
+    type: "line",
+    data: {
+      labels: recent.map(s=>s.date.slice(5)),
+      datasets: [{
+        label: "売上",
+        data: recent.map(s=>s.amount),
+        borderColor: "#1D7FA3",
+        backgroundColor: "rgba(79,179,217,0.18)",
+        fill: true,
+        tension: .3,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      plugins:{legend:{display:false}},
+      scales:{ y:{beginAtZero:true, ticks:{callback:v=>"¥"+v.toLocaleString()}} }
+    }
+  });
+
+  // 原価率チャート
+  const ctx2 = document.getElementById("costChart").getContext("2d");
+  if(costChartInstance) costChartInstance.destroy();
+  const labels = menus.map(m=>m.name);
+  const rates = menus.map(m=>{
+    const { perServing } = menuCost(m);
+    return m.actualPrice ? (perServing/m.actualPrice*100) : m.targetRate;
+  });
+  costChartInstance = new Chart(ctx2, {
+    type: "bar",
+    data: {
+      labels: labels.length ? labels : ["メニュー未登録"],
+      datasets: [{
+        label: "原価率(%)",
+        data: rates.length ? rates : [0],
+        backgroundColor: rates.map(r=> r<=32 ? "#3E8E6E" : r>38 ? "#C0392B" : "#4FB3D9"),
+      }]
+    },
+    options: {
+      plugins:{legend:{display:false}},
+      scales:{ y:{beginAtZero:true, suggestedMax:60, ticks:{callback:v=>v+"%"}} }
+    }
+  });
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ===================== 初期化 ===================== */
+document.getElementById("sDate").value = todayStr();
+initChecklistForm();
+renderChecklist();
+renderIngredients();
+renderRecipeLines();
+renderMenuList();
+renderSales();
+fillExpenseForm();
+renderExpense();
+renderNotes();
+renderDashboard();
+</script>
+</body>
+</html>
