@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麹とおばんざい ひとくち かんたん原価計算</title>
+<style>
+  :root{
+    --primary:#1D7FA3;
+    --primary-dark:#145A75;
+    --accent:#4FB3D9;
+    --bg:#EFF8FB;
+    --card:#FFFFFF;
+    --light:#DEF1F7;
+    --text:#22333B;
+    --muted:#6E8A95;
+    --good:#3E8E6E;
+    --warn:#C0392B;
+    --border:#CDE8F0;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  #wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px;}
+  header{text-align:center;margin-bottom:24px;}
+  header h1{font-size:20px;color:var(--primary);margin:0 0 4px;}
+  header p{font-size:13px;color:var(--muted);margin:0;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    margin-bottom:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .card h2{margin:0 0 4px;font-size:16px;color:var(--primary-dark);}
+  .card .sub{font-size:12px;color:var(--muted);margin:0 0 14px;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+  th{background:var(--light);color:var(--primary-dark);font-weight:bold;font-size:11.5px;}
+  tr:hover td{background:#EAF7FB;}
+  .tbl-wrap{overflow-x:auto;}
+
+  input[type=text],input[type=number],select{
+    font-family:inherit;
+    padding:7px 9px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:13px;
+    background:#F7FCFE;
+    color:var(--text);
+  }
+  button{
+    font-family:inherit;
+    background:var(--primary);
+    color:#fff;
+    border:none;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:bold;
+  }
+  button:hover{background:var(--primary-dark);}
+  button.secondary{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+  button.secondary:hover{background:var(--light);}
+  button.danger{background:#fff;color:var(--warn);border:1px solid var(--warn);padding:5px 10px;font-size:12px;}
+  button.danger:hover{background:#fdecea;}
+
+  .form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;}
+  .form-row label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);}
+
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:bold;}
+  .badge.good{background:#e7f4ea;color:var(--good);}
+  .badge.warn{background:#fdecea;color:var(--warn);}
+  .badge.neutral{background:var(--light);color:var(--primary-dark);}
+
+  .empty{color:var(--muted);font-size:13px;padding:10px 2px;}
+  .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:2px;}
+
+  .menu-card{border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:16px;background:#FBFEFF;}
+  .menu-card-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .menu-card-head .name{font-size:17px;font-weight:bold;color:var(--primary-dark);}
+  .menu-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);}
+  .menu-stats .box{min-width:120px;}
+  .menu-stats .stat-label{color:var(--muted);font-size:11px;margin-bottom:2px;}
+  .menu-stats .stat-value{font-weight:bold;font-size:17px;color:var(--primary);}
+  .menu-stats .stat-value input{font-size:15px;font-weight:bold;width:70px;}
+  .bottleneck{font-size:11.5px;color:var(--muted);margin-top:4px;}
+
+  .summary-bar{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
+  .summary-bar .box{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center;}
+  .summary-bar .box .label{font-size:11px;color:var(--muted);margin-bottom:4px;}
+  .summary-bar .box .value{font-size:22px;font-weight:bold;color:var(--primary);}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>🥬 麹とおばんざい ひとくち</h1>
+    <p>かんたん原価計算 — メニューごとに材料・仕入れ・使用量を管理</p>
+  </header>
+
+  <div class="summary-bar" id="summaryBar"></div>
+
+  <div class="card">
+    <h2>メニューを追加</h2>
+    <p class="sub">まずメニュー名と売価を入れてください。そのあと、そのメニューで使う材料を1つずつ登録していきます。</p>
+    <div class="form-row">
+      <label>メニュー名<input type="text" id="mName" placeholder="例：肉じゃが" style="width:160px"></label>
+      <label>売価（円）<input type="text" id="mPrice" placeholder="例：600" style="width:90px"></label>
+      <button onclick="addMenu()">＋ メニューを追加</button>
+    </div>
+  </div>
+
+  <div id="menuListContainer"></div>
+  <div class="empty" id="menuEmpty">まだメニューが登録されていません。上のフォームから追加してください。</div>
+
+</div>
+
+<script>
+/* ===================== ユーティリティ ===================== */
+const yen = n => "¥" + Math.round(n || 0).toLocaleString("ja-JP");
+const pct = n => (isFinite(n) ? n.toFixed(1) : "0.0") + "%";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function parseQty(str) {
+  if (str === null || str === undefined) return NaN;
+  str = String(str).trim();
+  if (!str) return NaN;
+  let m = str.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/); // 1 1/2
+  if (m) return parseInt(m[1], 10) + parseInt(m[2], 10) / parseInt(m[3], 10);
+  m = str.match(/^(\d+)\s*\/\s*(\d+)$/); // 1/3
+  if (m) return parseInt(m[1], 10) / parseInt(m[2], 10);
+  const num = parseFloat(str);
+  return isNaN(num) ? NaN : num;
+}
+
+function load(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch (e) { return fallback; }
+}
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ===================== データ ===================== */
+// menu: { id, name, price, lines: [ { id, name, qtyText, qty, unit, price, usageText, usage } ] }
+let menus = load("hk_menus_v2", []);
+
+/* ===================== メニュー ===================== */
+function addMenu() {
+  const name = document.getElementById("mName").value.trim();
+  const price = parseQty(document.getElementById("mPrice").value);
+  if (!name || !isFinite(price) || price <= 0) {
+    alert("メニュー名と売価を正しく入力してください。");
+    return;
+  }
+  menus.push({ id: uid(), name, price, lines: [] });
+  document.getElementById("mName").value = "";
+  document.getElementById("mPrice").value = "";
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function deleteMenu(id) {
+  if (!confirm("このメニューを削除しますか？")) return;
+  menus = menus.filter(m => m.id !== id);
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function updateMenuPrice(id, value) {
+  const price = parseQty(value);
+  const menu = menus.find(m => m.id === id);
+  if (menu && isFinite(price) && price >= 0) {
+    menu.price = price;
+    save("hk_menus_v2", menus);
+    renderMenus();
+  }
+}
+
+/* ===================== 材料（メニューにひもづく） ===================== */
+function addLine(menuId) {
+  const name = document.getElementById("lName_" + menuId).value.trim();
+  const qty = parseQty(document.getElementById("lQty_" + menuId).value);
+  const unit = document.getElementById("lUnit_" + menuId).value;
+  const price = parseQty(document.getElementById("lPrice_" + menuId).value);
+  const usageInput = document.getElementById("lUsage_" + menuId);
+  const usage = parseQty(usageInput.value);
+
+  if (!name) { alert("材料名を入力してください。"); return; }
+  if (!isFinite(qty) || qty <= 0) { alert("仕入数量を数値か分数（例：1/3）で入力してください。"); return; }
+  if (!isFinite(price) || price < 0) { alert("仕入価格を入力してください。"); return; }
+  if (!isFinite(usage) || usage <= 0) { alert("1人前の使用量を数値か分数（例：1/3）で入力してください。"); return; }
+
+  const menu = menus.find(m => m.id === menuId);
+  menu.lines.push({
+    id: uid(), name, qty, unit, price,
+    usageText: usageInput.value.trim(), usage,
+  });
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function removeLine(menuId, lineId) {
+  const menu = menus.find(m => m.id === menuId);
+  menu.lines = menu.lines.filter(l => l.id !== lineId);
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function unitPriceOf(line) { return line.price / line.qty; }
+function lineCostPerServing(line) { return unitPriceOf(line) * line.usage; }
+function lineMakeableServings(line) { return line.usage > 0 ? Math.floor(line.qty / line.usage) : null; }
+
+function menuCost(menu) {
+  return menu.lines.reduce((sum, l) => sum + lineCostPerServing(l), 0);
+}
+function menuMakeableServings(menu) {
+  if (menu.lines.length === 0) return null;
+  const values = menu.lines.map(lineMakeableServings).filter(v => v !== null);
+  if (values.length === 0) return null;
+  return Math.min(...values);
+}
+function menuBottleneck(menu) {
+  const makeable = menuMakeableServings(menu);
+  if (makeable === null) return [];
+  return menu.lines.filter(l => lineMakeableServings(l) === makeable).map(l => l.name);
+}
+function rateBadge(rate) {
+  let cls = "neutral";
+  if (rate <= 32) cls = "good"; else if (rate > 38) cls = "warn";
+  return `<span class="badge ${cls}">${pct(rate)}</span>`;
+}
+
+function renderMenus() {
+  const container = document.getElementById("menuListContainer");
+  container.innerHTML = "";
+  document.getElementById("menuEmpty").style.display = menus.length ? "none" : "block";
+
+  menus.forEach(menu => {
+    const cost = menuCost(menu);
+    const rate = menu.price ? (cost / menu.price * 100) : NaN;
+    const makeable = menuMakeableServings(menu);
+    const bottleneck = menuBottleneck(menu);
+
+    const linesRows = menu.lines.map(l => {
+      const unitPrice = unitPriceOf(l);
+      const lineCost = lineCostPerServing(l);
+      const servings = lineMakeableServings(l);
+      return `<tr>
+        <td>${escapeHtml(l.name)}</td>
+        <td>${l.qty}${escapeHtml(l.unit)}</td>
+        <td>${yen(l.price)}</td>
+        <td>${yen(unitPrice)}/${escapeHtml(l.unit)}</td>
+        <td>${escapeHtml(l.usageText)}${escapeHtml(l.unit)}</td>
+        <td>${yen(lineCost)}</td>
+        <td>${servings !== null ? servings + "人前" : "—"}</td>
+        <td><button class="danger" onclick="removeLine('${menu.id}', '${l.id}')">削除</button></td>
+      </tr>`;
+    }).join("");
+
+    const div = document.createElement("div");
+    div.className = "menu-card";
+    div.innerHTML = `
+      <div class="menu-card-head">
+        <span class="name">${escapeHtml(menu.name)}</span>
+        <button class="danger" onclick="deleteMenu('${menu.id}')">メニューを削除</button>
+      </div>
+
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>材料</th><th>仕入数量</th><th>仕入価格</th><th>単価</th>
+          <th>使用量(1人前)</th><th>1人前コスト</th><th>作れる人前</th><th></th>
+        </tr></thead>
+        <tbody>${linesRows || `<tr><td colspan="8" class="empty">まだ材料が追加されていません。下のフォームから追加してください。</td></tr>`}</tbody>
+      </table>
+      </div>
+
+      <div class="form-row" style="margin-top:12px;">
+        <label>材料名<input type="text" id="lName_${menu.id}" placeholder="例：牛肉" style="width:100px"></label>
+        <label>仕入数量<input type="text" id="lQty_${menu.id}" placeholder="例：500" style="width:70px"></label>
+        <label>単位<select id="lUnit_${menu.id}">
+          <option>g</option><option>kg</option><option>ml</option><option>L</option>
+          <option>本</option><option>個</option><option>束</option><option>枚</option><option>パック</option>
+        </select></label>
+        <label>仕入価格(円)<input type="text" id="lPrice_${menu.id}" placeholder="例：800" style="width:80px"></label>
+        <label>使用量(1人前)<input type="text" id="lUsage_${menu.id}" placeholder="例：100 や 1/3" style="width:90px"></label>
+        <button class="secondary" onclick="addLine('${menu.id}')">＋ 材料を追加</button>
+      </div>
+      <div class="hint">例：牛肉を500g・800円で仕入れて、1人前に100g使うなら → 仕入数量「500」単位「g」仕入価格「800」使用量「100」。仕入数量と使用量は同じ単位で入力してください。</div>
+
+      <div class="menu-stats">
+        <div class="box"><div class="stat-label">売価</div><div class="stat-value">
+          <input type="text" value="${menu.price}" onchange="updateMenuPrice('${menu.id}', this.value)">円
+        </div></div>
+        <div class="box"><div class="stat-label">合計原価（1人前）</div><div class="stat-value">${yen(cost)}</div></div>
+        <div class="box"><div class="stat-label">原価率</div><div class="stat-value">${isFinite(rate) ? rateBadge(rate) : "—"}</div></div>
+        <div class="box"><div class="stat-label">今の仕入れで作れる人前</div><div class="stat-value">${makeable !== null ? makeable + "人前" : "—"}</div>
+          ${bottleneck.length ? `<div class="bottleneck">※ ${escapeHtml(bottleneck.join("・"))} が先に無くなります</div>` : ""}
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  renderSummary();
+}
+
+function renderSummary() {
+  const bar = document.getElementById("summaryBar");
+  if (menus.length === 0) { bar.innerHTML = ""; return; }
+  const rates = menus.filter(m => m.price > 0 && m.lines.length).map(m => menuCost(m) / m.price * 100);
+  const avg = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
+  bar.innerHTML = `
+    <div class="box"><div class="label">登録メニュー数</div><div class="value">${menus.length}</div></div>
+    <div class="box"><div class="label">平均原価率</div><div class="value">${avg !== null ? pct(avg) : "—"}</div></div>
+  `;
+}
+
+/* ===================== 初期化 ===================== */
+renderMenus();
+</script>
+</body>
+</html>
