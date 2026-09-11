@@ -48,7 +48,7 @@
   tr:hover td{background:#EAF7FB;}
   .tbl-wrap{overflow-x:auto;}
 
-  input[type=text],input[type=number],select{
+  input[type=text],input[type=number],select,textarea{
     font-family:inherit;
     padding:7px 9px;
     border:1px solid var(--border);
@@ -73,6 +73,7 @@
   button.secondary:hover{background:var(--light);}
   button.danger{background:#fff;color:var(--warn);border:1px solid var(--warn);padding:5px 10px;font-size:12px;}
   button.danger:hover{background:#fdecea;}
+  button.small{padding:5px 9px;font-size:11.5px;}
 
   .form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;}
   .form-row label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);}
@@ -99,6 +100,34 @@
   .summary-bar .box{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center;}
   .summary-bar .box .label{font-size:11px;color:var(--muted);margin-bottom:4px;}
   .summary-bar .box .value{font-size:22px;font-weight:bold;color:var(--primary);}
+
+  .search-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .search-bar input[type=text]{flex:1;min-width:220px;}
+  .search-bar select{min-width:160px;}
+
+  .menu-top-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;}
+  .photo-block{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .dish-photo{width:140px;height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--border);}
+  .dish-photo-placeholder{width:140px;height:140px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;background:var(--light);padding:6px;}
+  .file-label{display:inline-block;font-size:11.5px;color:var(--primary);border:1px solid var(--primary);border-radius:8px;padding:5px 8px;cursor:pointer;background:#fff;}
+  .file-label:hover{background:var(--light);}
+  .file-label input{display:none;}
+
+  .meta-block{flex:1;min-width:240px;display:flex;flex-direction:column;gap:10px;}
+  .inline-label{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:4px;}
+  .tags-row{display:flex;flex-direction:column;gap:6px;}
+  .tag-chips{display:flex;gap:6px;flex-wrap:wrap;min-height:22px;align-items:center;}
+  .tag-chip{background:var(--light);color:var(--primary-dark);font-size:11.5px;padding:3px 8px;border-radius:14px;display:inline-flex;align-items:center;gap:4px;}
+  .tag-x{cursor:pointer;color:var(--muted);font-weight:bold;}
+  .tag-x:hover{color:var(--warn);}
+  .tag-add-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .tag-add-row input{width:160px;}
+
+  .memo-block{margin-bottom:14px;padding-top:10px;border-top:1px dashed var(--border);}
+  .memo-label{font-size:12px;color:var(--primary-dark);font-weight:bold;margin-bottom:6px;}
+  .memo-block textarea{width:100%;resize:vertical;}
+  .ocr-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;}
+  .ocr-status{font-size:12px;color:var(--primary-dark);}
 </style>
 </head>
 <body>
@@ -117,6 +146,26 @@
       <label>メニュー名<input type="text" id="mName" placeholder="例：肉じゃが" style="width:160px"></label>
       <label>売価（円）<input type="text" id="mPrice" placeholder="例：600" style="width:90px"></label>
       <button onclick="addMenu()">＋ メニューを追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>メニューを検索</h2>
+    <p class="sub">メニュー名・材料名・タグ・メモから検索できます。カテゴリでの絞り込みも可能です。</p>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="🔍 例：牛肉、揚げ物、肉じゃが" oninput="onSearchInput(this.value)">
+      <select id="categoryFilterSelect" onchange="onCategoryFilter(this.value)">
+        <option value="all">すべてのカテゴリ</option>
+        <option value="未分類">未分類</option>
+        <option value="前菜・小鉢">前菜・小鉢</option>
+        <option value="主菜">主菜</option>
+        <option value="副菜・野菜">副菜・野菜</option>
+        <option value="ご飯・麺">ご飯・麺</option>
+        <option value="汁物">汁物</option>
+        <option value="デザート">デザート</option>
+        <option value="ドリンク">ドリンク</option>
+        <option value="その他">その他</option>
+      </select>
     </div>
   </div>
 
@@ -153,10 +202,181 @@ function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function jsStr(str) {
+  return String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+/* ===================== カテゴリ・タグ ===================== */
+const CATEGORIES = ["未分類", "前菜・小鉢", "主菜", "副菜・野菜", "ご飯・麺", "汁物", "デザート", "ドリンク", "その他"];
+
+const TAG_RULES = [
+  { tag: "肉料理", keys: ["肉", "牛", "豚", "鶏", "鳥", "ひき肉", "ベーコン", "ハム", "ソーセージ"] },
+  { tag: "魚介", keys: ["魚", "鮭", "さば", "鯖", "いわし", "鰯", "えび", "海老", "いか", "イカ", "たこ", "タコ", "貝", "しじみ", "あさり", "ぶり", "まぐろ", "鰹", "かつお", "ちくわ", "さつま揚げ"] },
+  { tag: "卵料理", keys: ["卵", "たまご", "玉子"] },
+  { tag: "豆・大豆", keys: ["豆腐", "大豆", "納豆", "厚揚げ", "油揚げ", "がんも"] },
+  { tag: "野菜たっぷり", keys: ["人参", "にんじん", "大根", "キャベツ", "ほうれん草", "小松菜", "なす", "ナス", "ピーマン", "玉ねぎ", "たまねぎ", "ごぼう", "れんこん", "蓮根", "じゃがいも", "かぼちゃ", "南瓜", "きのこ", "しいたけ", "しめじ", "もやし", "白菜", "水菜"] },
+  { tag: "揚げ物", keys: ["揚げ", "フライ", "天ぷら", "唐揚げ", "からあげ"] },
+  { tag: "煮物", keys: ["煮", "煮込み", "煮物", "おでん"] },
+  { tag: "炒め物", keys: ["炒め"] },
+  { tag: "焼き物", keys: ["焼き", "焼く", "グリル", "ソテー"] },
+  { tag: "和え物・サラダ", keys: ["和え", "サラダ", "酢の物", "浸し", "おひたし"] },
+  { tag: "汁物", keys: ["汁", "スープ", "味噌汁"] },
+  { tag: "ご飯もの", keys: ["ご飯", "ごはん", "丼", "おにぎり", "雑炊", "炊き込み"] },
+  { tag: "麺類", keys: ["麺", "うどん", "そば", "パスタ", "ラーメン"] },
+  { tag: "デザート", keys: ["デザート", "プリン", "アイス", "ケーキ", "ゼリー", "あんみつ", "わらび餅"] },
+  { tag: "ドリンク", keys: ["ビール", "日本酒", "焼酎", "ワイン", "ハイボール", "サワー", "ジュース", "ドリンク", "酒"] },
+];
+
+function suggestTags(menu) {
+  const text = [menu.name, menu.memo || "", ...(menu.lines || []).map(l => l.name)].join(" ");
+  const found = [];
+  TAG_RULES.forEach(rule => {
+    if (rule.keys.some(k => text.includes(k))) found.push(rule.tag);
+  });
+  return found;
+}
+function autoSuggestTags(menuId) {
+  const menu = menus.find(m => m.id === menuId);
+  const suggested = suggestTags(menu);
+  if (suggested.length === 0) {
+    alert("メニュー名・材料からタグを推測できませんでした。手動で追加してください。");
+    return;
+  }
+  menu.tags = Array.from(new Set([...(menu.tags || []), ...suggested]));
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function addTag(menuId, value) {
+  const tag = (value || "").trim();
+  if (!tag) return;
+  const menu = menus.find(m => m.id === menuId);
+  if (!menu.tags.includes(tag)) menu.tags.push(tag);
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function removeTag(menuId, tag) {
+  const menu = menus.find(m => m.id === menuId);
+  menu.tags = menu.tags.filter(t => t !== tag);
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+function setCategory(menuId, value) {
+  const menu = menus.find(m => m.id === menuId);
+  menu.category = value;
+  save("hk_menus_v2", menus);
+}
+
+/* ===================== 検索・絞り込み ===================== */
+let searchText = "";
+let filterCategory = "all";
+
+function onSearchInput(value) {
+  searchText = (value || "").trim().toLowerCase();
+  renderMenus();
+}
+function onCategoryFilter(value) {
+  filterCategory = value;
+  renderMenus();
+}
+function matchesFilter(menu) {
+  if (filterCategory !== "all" && (menu.category || "未分類") !== filterCategory) return false;
+  if (!searchText) return true;
+  const haystack = [menu.name, menu.category, menu.memo, ...(menu.tags || []), ...(menu.lines || []).map(l => l.name)]
+    .join(" ").toLowerCase();
+  return haystack.includes(searchText);
+}
+
+/* ===================== 完成写真 ===================== */
+function compressImage(file, maxW, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function onPhotoSelected(menuId, file) {
+  if (!file) return;
+  try {
+    const dataUrl = await compressImage(file, 700, 0.75);
+    const menu = menus.find(m => m.id === menuId);
+    menu.photo = dataUrl;
+    save("hk_menus_v2", menus);
+    renderMenus();
+  } catch (e) {
+    alert("写真の読み込みに失敗しました。もう一度お試しください。");
+  }
+}
+function removePhoto(menuId) {
+  const menu = menus.find(m => m.id === menuId);
+  menu.photo = null;
+  save("hk_menus_v2", menus);
+  renderMenus();
+}
+
+/* ===================== 写真から文字読み取り（OCR） ===================== */
+function loadTesseract() {
+  return new Promise((resolve, reject) => {
+    if (window.Tesseract) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Tesseract.jsの読み込みに失敗しました"));
+    document.head.appendChild(s);
+  });
+}
+async function onOcrFile(menuId, file) {
+  if (!file) return;
+  const statusEl = document.getElementById("ocrStatus_" + menuId);
+  const ta = document.getElementById("memo_" + menuId);
+  if (statusEl) statusEl.textContent = "準備中…";
+  try {
+    await loadTesseract();
+    if (statusEl) statusEl.textContent = "文字を読み取っています…（写真によっては数十秒かかります）";
+    const result = await Tesseract.recognize(file, "jpn", {
+      logger: m => {
+        if (statusEl && m.status === "recognizing text" && typeof m.progress === "number") {
+          statusEl.textContent = `文字を読み取っています… ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    });
+    const text = ((result && result.data && result.data.text) || "").trim();
+    const menu = menus.find(m => m.id === menuId);
+    menu.memo = (menu.memo ? menu.memo + "\n---\n" : "") + (text || "(文字を認識できませんでした。手入力してください)");
+    if (ta) ta.value = menu.memo;
+    save("hk_menus_v2", menus);
+    if (statusEl) statusEl.textContent = "✅ 読み取り完了。誤読みがないか確認・修正してください。";
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "⚠ 読み取りに失敗しました。もう一度お試しいただくか、手入力してください。";
+  }
+}
+function saveMemo(menuId, value) {
+  const menu = menus.find(m => m.id === menuId);
+  menu.memo = value;
+  save("hk_menus_v2", menus);
+}
 
 /* ===================== データ ===================== */
-// menu: { id, name, price, lines: [ { id, name, qtyText, qty, unit, price, usageText, usage } ] }
+// menu: { id, name, price, category, tags:[], photo, memo, lines: [ { id, name, qtyText, qty, unit, price, usageText, usage } ] }
 let menus = load("hk_menus_v2", []);
+menus.forEach(m => {
+  if (m.category === undefined) m.category = "未分類";
+  if (!Array.isArray(m.tags)) m.tags = [];
+  if (m.photo === undefined) m.photo = null;
+  if (m.memo === undefined) m.memo = "";
+});
 
 /* ===================== メニュー ===================== */
 function addMenu() {
@@ -166,7 +386,7 @@ function addMenu() {
     alert("メニュー名と売価を正しく入力してください。");
     return;
   }
-  menus.push({ id: uid(), name, price, lines: [] });
+  menus.push({ id: uid(), name, price, category: "未分類", tags: [], photo: null, memo: "", lines: [] });
   document.getElementById("mName").value = "";
   document.getElementById("mPrice").value = "";
   save("hk_menus_v2", menus);
@@ -245,7 +465,16 @@ function renderMenus() {
   container.innerHTML = "";
   document.getElementById("menuEmpty").style.display = menus.length ? "none" : "block";
 
-  menus.forEach(menu => {
+  const visibleMenus = menus.filter(matchesFilter);
+
+  if (menus.length > 0 && visibleMenus.length === 0) {
+    const noResult = document.createElement("div");
+    noResult.className = "empty";
+    noResult.textContent = "条件に一致するメニューが見つかりませんでした。検索語やカテゴリを変えてお試しください。";
+    container.appendChild(noResult);
+  }
+
+  visibleMenus.forEach(menu => {
     const cost = menuCost(menu);
     const rate = menu.price ? (cost / menu.price * 100) : NaN;
     const makeable = menuMakeableServings(menu);
@@ -267,12 +496,54 @@ function renderMenus() {
       </tr>`;
     }).join("");
 
+    const categoryOptions = CATEGORIES.map(c =>
+      `<option value="${c}" ${((menu.category || "未分類") === c) ? "selected" : ""}>${c}</option>`
+    ).join("");
+
+    const tagChips = (menu.tags || []).map(t =>
+      `<span class="tag-chip">${escapeHtml(t)} <span class="tag-x" onclick="removeTag('${menu.id}','${jsStr(t)}')">×</span></span>`
+    ).join("") || `<span class="hint">タグ未設定</span>`;
+
+    const photoBlock = menu.photo
+      ? `<img class="dish-photo" src="${menu.photo}" alt="${escapeHtml(menu.name)}"><button class="secondary small" onclick="removePhoto('${menu.id}')">写真を削除</button>`
+      : `<div class="dish-photo-placeholder">📷 写真未登録</div>`;
+
     const div = document.createElement("div");
     div.className = "menu-card";
     div.innerHTML = `
       <div class="menu-card-head">
         <span class="name">${escapeHtml(menu.name)}</span>
         <button class="danger" onclick="deleteMenu('${menu.id}')">メニューを削除</button>
+      </div>
+
+      <div class="menu-top-row">
+        <div class="photo-block">
+          ${photoBlock}
+          <label class="file-label">🍽 完成写真を選ぶ<input type="file" accept="image/*" onchange="onPhotoSelected('${menu.id}', this.files[0])"></label>
+        </div>
+
+        <div class="meta-block">
+          <label class="inline-label">カテゴリ
+            <select onchange="setCategory('${menu.id}', this.value)">${categoryOptions}</select>
+          </label>
+          <div class="tags-row">
+            <div class="tag-chips">${tagChips}</div>
+            <div class="tag-add-row">
+              <input type="text" placeholder="タグを追加してEnter" onkeydown="if(event.key==='Enter'){addTag('${menu.id}', this.value); this.value='';}">
+              <button class="secondary small" onclick="autoSuggestTags('${menu.id}')">🏷 タグ自動提案</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="memo-block">
+        <div class="memo-label">📝 作り方・レシピメモ</div>
+        <textarea id="memo_${menu.id}" rows="4" placeholder="作り方や仕込みメモを入力（写真から読み取ることもできます）" onchange="saveMemo('${menu.id}', this.value)">${escapeHtml(menu.memo || "")}</textarea>
+        <div class="ocr-row">
+          <label class="file-label">📷 レシピ写真から読み取る<input type="file" accept="image/*" onchange="onOcrFile('${menu.id}', this.files[0])"></label>
+          <span class="ocr-status" id="ocrStatus_${menu.id}"></span>
+        </div>
+        <div class="hint">※ ブラウザ内だけで動く無料の文字認識機能です。印刷文字はある程度読み取れますが、手書きは誤読みが多いため、読み取り後に内容を確認・修正してください。</div>
       </div>
 
       <div class="tbl-wrap">
@@ -312,17 +583,19 @@ function renderMenus() {
     container.appendChild(div);
   });
 
-  renderSummary();
+  renderSummary(visibleMenus.length);
 }
 
-function renderSummary() {
+function renderSummary(visibleCount) {
   const bar = document.getElementById("summaryBar");
   if (menus.length === 0) { bar.innerHTML = ""; return; }
   const rates = menus.filter(m => m.price > 0 && m.lines.length).map(m => menuCost(m) / m.price * 100);
   const avg = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
+  const filterActive = (searchText || filterCategory !== "all");
   bar.innerHTML = `
     <div class="box"><div class="label">登録メニュー数</div><div class="value">${menus.length}</div></div>
     <div class="box"><div class="label">平均原価率</div><div class="value">${avg !== null ? pct(avg) : "—"}</div></div>
+    ${filterActive ? `<div class="box"><div class="label">検索結果</div><div class="value">${visibleCount}件</div></div>` : ""}
   `;
 }
 
